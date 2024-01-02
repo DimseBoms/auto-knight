@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# Name: auto-knight
+
+# Description:
+# This script automatically changes the global theme of KDE Plasma based on the time of day.
+# It utilizes KDE's built-in night color feature to determine whether it is day or night.
+# If the target color temperature deviates from the default temperature, it is considered night.
+# Otherwise, it is considered day.
+# The script is intended to be run on startup and left running.
+
+# Author: Dmitriy Safiullin
+# Date: 02.01.2024
+
+
+# Theme and command settings
+# Note: The available themes can be listed with the command: plasma-apply-lookandfeel -l
+light_theme="org.kde.breeze.desktop"
+dark_theme="org.kde.breezedark.desktop"
+change_theme_command="plasma-apply-lookandfeel -a"
+
+
+# Function to set the theme and update state
+set_theme() {
+    $change_theme_command "$1"
+    last_theme="$1"
+}
+
+# Function to check if the current color temperature is the default temperature
+is_default_temperature() {
+    target_temp=$(qdbus-qt5 org.kde.KWin /ColorCorrect org.kde.kwin.ColorCorrect.targetTemperature)
+    default_temp=$(kreadconfig5 --file kwinrc --group NightColor --key DayTemperature --default 6500)
+    [[ "$target_temp" == "$default_temp" ]]
+}
+
+
+# Initialize the theme based on KWins current color temperature
+if is_default_temperature; then
+    set_theme "$light_theme" # Set light theme if default temperature
+else
+    set_theme "$dark_theme" # Set dark theme if not default temperature
+fi
+
+# Monitor changes in color target color temperature and change theme accordingly
+dbus-monitor --session "type='signal', interface='org.freedesktop.DBus.Properties', member='PropertiesChanged', path='/ColorCorrect', arg0='org.kde.kwin.ColorCorrect'" |
+    grep --line-buffered "targetTemperature" |
+    while read -r line; do
+        if is_default_temperature; then
+            if [[ "$last_theme" != "$light_theme" ]]; then
+                set_theme "$light_theme"
+            fi
+        else
+            if [[ "$last_theme" != "$dark_theme" ]]; then
+                set_theme "$dark_theme"
+            fi
+        fi
+    done
