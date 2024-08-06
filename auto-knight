@@ -20,7 +20,7 @@ set_theme() {
 
 # Gets current daylight status
 is_daylight() {
-    daylight_status=$(qdbus6 org.kde.KWin /org/kde/KWin/NightLight org.kde.KWin.NightLight.daylight)
+    daylight_status=$(qdbus org.kde.KWin /org/kde/KWin/NightLight org.kde.KWin.NightLight.daylight)
     [[ "$daylight_status" == "true" ]]
 }
 
