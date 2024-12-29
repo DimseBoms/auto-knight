@@ -1,43 +1,55 @@
 #!/bin/bash
 
 # Name: auto-knight
-# Description: This script automatically changes the global theme of KDE Plasma based on the time of day.
-# It utilizes KDE's built-in Night Light feature to determine whether it is day or night.
-# The script is intended to be run on startup.
+# Description: This script automatically changes the global theme of
+# KDE Plasma based on the time of day. It utilizes KDE's built-in
+# Night Light feature to determine whether it is day or night.
+# The script is intended to be autostarted.
 # Author: Dmitriy Safiullin
-# Date: 20204.03.16
+# Date: 2024.03.16
 
-# Theme and command settings
-light_theme="org.kde.breezetwilight.desktop"
-dark_theme="org.kde.breezedark.desktop"
-change_theme_command="plasma-apply-lookandfeel -a"
+# theme and command settings
+LIGHT_THEME="org.kde.breeze.desktop"
+DARK_THEME="org.kde.breezedark.desktop"
+CHANGE_THEME_COMMAND="plasma-apply-lookandfeel -a"
 
-# Function to set the theme and update state
+# sets theme and updates state
 set_theme() {
-    $change_theme_command "$1"  # Apply the specified theme
-    last_theme="$1"  # Update the last theme variable
+    $CHANGE_THEME_COMMAND "$1"
+    LAST_THEME="$1"
 }
 
-# Gets current daylight status
+# retrieves current daylight status
 is_daylight() {
-    daylight_status=$(qdbus org.kde.KWin /org/kde/KWin/NightLight org.kde.KWin.NightLight.daylight)
+    local daylight_status
+    daylight_status=$(qdbus org.kde.KWin /org/kde/KWin/NightLight \
+        org.kde.KWin.NightLight.daylight)
     [[ "$daylight_status" == "true" ]]
 }
 
-# Initialize the theme based on the current daylight status
-if is_daylight; then
-    set_theme "$light_theme"  # Set the light theme
-else
-    set_theme "$dark_theme"  # Set the dark theme
-fi
+# initializes the theme based on the current daylight status
+initialize_theme() {
+    if is_daylight; then
+        set_theme "$LIGHT_THEME"
+    else
+        set_theme "$DARK_THEME"
+    fi
+}
 
-# Monitor changes in daylight status and update the theme accordingly
-dbus-monitor --session "type='signal',interface='org.freedesktop.DBus.Properties', member='PropertiesChanged', path='/org/kde/KWin/NightLight'" |
-    grep --line-buffered "daylight" |
-    while read -r line; do
-        if is_daylight; then
-            [[ "$last_theme" != "$light_theme" ]] && set_theme "$light_theme"  # Set the light theme if it needs to be changed
-        else
-            [[ "$last_theme" != "$dark_theme" ]] && set_theme "$dark_theme"  # Set the dark theme if it needs to be changed
-        fi
-    done
+# monitors changes in daylight status and updates the theme accordingly
+monitor_daylight_changes() {
+    dbus-monitor --session \
+        "type='signal',interface='org.freedesktop.DBus.Properties', \
+        member='PropertiesChanged', path='/org/kde/KWin/NightLight'" |
+        grep --line-buffered "daylight" |
+        while read -r line; do
+            if is_daylight; then
+                [[ "$LAST_THEME" != "$LIGHT_THEME" ]] && set_theme "$LIGHT_THEME"
+            else
+                [[ "$LAST_THEME" != "$DARK_THEME" ]] && set_theme "$DARK_THEME"
+            fi
+        done
+}
+
+initialize_theme
+monitor_daylight_changes
